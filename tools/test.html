@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="cs"><head><meta charset="utf-8"><title>Test parseru</title></head>
+<body style="font:14px system-ui;background:#111;color:#eee">
+<pre id="out"></pre>
+<script src="../data/parts.js"></script>
+<script src="parse.js"></script>
+<script>
+// Real requirement texts (from Steam), glued together the way RAWG often returns them.
+const samples = [
+  "Minimum:OS: Windows 7 64-bitProcessor: Intel Core i5-4460 / AMD FX-6300Memory: 8 GB RAMGraphics: NVIDIA GeForce GTX 760 / AMD Radeon R7 260xStorage: 20 GB",
+  "Minimum:OS *: Windows 10Processor: Core i7-6700 or Ryzen 5 1600Memory: 12 GB RAMGraphics: GeForce GTX 1060 6GB or Radeon RX 580 8GB or Arc A380DirectX: Version 12",
+  "Recommended:Processor: Intel Core i7-12700 or AMD Ryzen 7 7800X3DMemory: 16 GB RAMGraphics: GeForce RTX 2060 SUPER or Radeon RX 5700 XT or Arc A770",
+  "Minimum:Processor: Dual Core 2.4 GHzMemory: 4 GB RAMGraphics: 1GB VRAM / DirectX 10+ supportDirectX: Version 10",
+  "Minimum:Processor: 2 GhzMemory: 2 GB RAMGraphics: 256 mb video memory, shader model 3.0+",
+  "Minimum:Processor: Intel Core 2 Quad CPU Q6600 @ 2.40GHz (4 CPUs) / AMD Phenom 9850 Quad-Core Processor (4 CPUs) @ 2.5GHzMemory: 4 GB RAMGraphics: NVIDIA 9800 GT 1GB / AMD HD 4870 1GB (DX 10, 10.1, 11)",
+  "Minimum:Processor: INTEL CORE I5-8400 or AMD RYZEN 3 3300XMemory: 12 GB RAMGraphics: NVIDIA GEFORCE GTX 1060 3 GB or AMD RADEON RX 580 4 GB",
+  "Minimum:Processor: Intel Core quad-core or AMD Athlon quad-coreMemory: 8 GB RAMGraphics: NVIDIA GeForce GTX 660 or AMD Radeon HD 7850 or Intel HD Graphics 4000, with 1 GB video memory",
+  "Recommended:Processor: Intel® Core™ i7-9700K or AMD Ryzen™ 7 3700XMemory: 16 GB RAMGraphics: NVIDIA® GeForce® RTX 2060 or AMD Radeon™ RX 6600XT",
+  "Minimum:Processor: AMD Ryzen 5 1400 or Intel Core i5-6600Memory: 12 GB RAMGraphics: AMD Radeon RX 470, NVIDIA GeForce GTX 1060, Intel® Arc™ A580",
+  "Minimum:Processor: 4 core / 8 threads | Intel Core i7-7700 | Ryzen 5 1400Memory: 8 GB RAMGraphics: 8GB VRAM | GTX 1070 | Radeon RX 580",
+  "Minimum:Processor: Quad core 3Ghz+Memory: 8 GB RAMGraphics: DirectX 11 capable GPU with 1GB VRAM - GeForce GTX 750 Ti, Radeon R7 360 or Intel UHD Graphics 730",
+  "Minimum:Processor: Intel Core i3-2100T or AMD FX 6100Memory: 8 GB RAMGraphics: Nvidia GeForce GTX 660 or AMD R7 260x",
+  "Minimum:Processor: Intel Core i5-750Memory: 512 MB RAMGraphics: Radeon RX5700XT",
+  "Minimum:Processor: Intel Core i7Memory: 8 GB RAMGraphics: NVIDIA GeForce GTX 1060 / GTX 1650 or AMD R9 380 / RX 6400",
+  "Minimum:Processor: x64 architecture with SSE2 instruction set supportMemory: 1 GB RAMGraphics: DX11, DX12 capable",
+  "Minimum:Processor: Intel cpu i3Memory: 4 GB RAMGraphics: GTX 650",
+  "Minimum:Processor: 2.4 GHz Dual Core ProcessorMemory: 2 GBGraphics: NVIDIA GeForce 8500 /ATI Radeon HD 2600",
+  "Minimum:Processor: Pentium 4 3.0GHzMemory: 2 GB RAMGraphics: Video card with 128 MB, Shader model 2.0. ATI X800, NVidia 6600 or better",
+  "Minimum:Processor: 1.7 GhzMemory: 512 MB RAMGraphics: DirectX 8.1 level Graphics Card (requires support for SSE)",
+  "Minimum:Processor: Intel Core 2 Duo 1.8GHz, AMD Athlon X2 64 2.4GHzMemory: 1.5GBGraphics: 256MB Nvidia 7900 / 256MB ATI X1900"
+];
+document.getElementById("out").textContent = samples.map((s, i) => {
+  const r = ReqParser.parse(s);
+  return `#${i + 1}\n  CPU: ${r.cpu ? r.cpu.join(" | ") : "—  (" + r.raw.cpu + ")"}\n  GPU: ${r.gpu ? r.gpu.join(" | ") : "—  (" + r.raw.gpu + ")"}\n  RAM: ${r.ram}`;
+}).join("\n");
+</script>
+</body></html>

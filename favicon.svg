@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+  <!-- Browser-tab icon: monitor with a tick -->
+  <rect width="48" height="48" rx="11" fill="#0F1A14"/>
+  <g fill="none" stroke="#3EE08F" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" transform="translate(2 2) scale(.92)">
+    <rect x="4" y="7" width="40" height="27" rx="4"/><path d="M17 41h14M24 34v7M16 21l5.5 5.5L33 15"/>
+  </g>
+</svg>

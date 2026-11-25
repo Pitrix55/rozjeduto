@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Rozjede to? – ruční stažení dat z RAWG</title>
+<style>
+  :root{--bg:#0C1210;--surface:#141D19;--line:#263530;--ink:#E9F3EE;--muted:#93A69D;--accent:#3EE08F;--no:#FF6B6B}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,"Segoe UI",sans-serif}
+  .wrap{max-width:980px;margin:0 auto;padding:28px 18px 60px}
+  h1{margin:0 0 6px;font-size:1.6rem}
+  p{color:var(--muted);margin:0 0 14px}
+  .box{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:18px}
+  .grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px}
+  label{display:flex;flex-direction:column;gap:5px;font-weight:600;font-size:.9rem}
+  label small{font-weight:400;color:var(--muted)}
+  input{font:inherit;color:var(--ink);background:#0F1714;border:1.5px solid var(--line);border-radius:9px;padding:9px 11px}
+  button{font:inherit;font-weight:700;border:0;border-radius:10px;padding:11px 18px;cursor:pointer;background:var(--accent);color:#06140D}
+  button.ghost{background:transparent;color:var(--ink);box-shadow:inset 0 0 0 1.5px var(--line)}
+  button:disabled{opacity:.5;cursor:default}
+  .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;align-items:center}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  .stat{background:#0F1714;border-radius:10px;padding:10px 12px}
+  .stat b{display:block;font-size:1.4rem}
+  .stat span{color:var(--muted);font-size:.82rem}
+  progress{width:100%;height:10px;margin-top:12px;accent-color:var(--accent)}
+  #log{max-height:180px;overflow:auto;font:12px ui-monospace,Consolas,monospace;color:var(--muted);white-space:pre-wrap;margin:10px 0 0}
+  table{width:100%;border-collapse:collapse;font-size:.82rem}
+  td,th{border-bottom:1px solid var(--line);padding:6px;text-align:left;vertical-align:top}
+  .raw{color:var(--muted)} .bad{color:var(--no)} .good{color:var(--accent)}
+  @media(max-width:700px){.grid,.stats{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Ruční stažení dat z RAWG</h1>
+  <p>Záložní možnost. Normálně data obnovuje GitHub sám každé pondělí (Actions → „Aktualizace dat z RAWG“). Tahle stránka udělá totéž v prohlížeči: stáhne populární a vycházející PC hry, rozpozná požadavky a připraví soubor <b>games.js</b>, který pak nahraješ do složky <b>data</b>. Klíč se nikam neukládá a posílá se jen do RAWG.</p>
+
+  <div class="box">
+    <div class="grid">
+      <label>RAWG API klíč <small>z rawg.io/apidocs</small>
+        <input id="key" type="password" autocomplete="off" placeholder="vlož svůj klíč">
+      </label>
+      <label>Populární hry <small>stránek po 40 hrách</small>
+        <input id="pages" type="number" min="1" max="500" value="250">
+      </label>
+      <label>Vycházející hry <small>měsíců dopředu</small>
+        <input id="months" type="number" min="0" max="24" value="12">
+      </label>
+    </div>
+    <div class="row">
+      <button id="start">Stáhnout data</button>
+      <button id="stop" class="ghost" disabled>Zastavit</button>
+      <button id="save" class="ghost" disabled>Uložit games.js</button>
+      <span id="status" class="raw"></span>
+    </div>
+    <progress id="prog" value="0" max="1"></progress>
+    <pre id="log"></pre>
+  </div>
+
+  <div class="box">
+    <div class="stats">
+      <div class="stat"><b id="sSeen">0</b><span>prošlých her</span></div>
+      <div class="stat"><b id="sReq">0</b><span>s vyplněnými požadavky</span></div>
+      <div class="stat"><b id="sOk" class="good">0</b><span>rozpoznáno (do souboru)</span></div>
+      <div class="stat"><b id="sUp">0</b><span>z toho vycházejících</span></div>
+    </div>
+  </div>
+
+  <div class="box">
+    <p style="margin-bottom:8px"><b style="color:var(--ink)">Kontrola rozpoznání</b> – náhodný vzorek, ať vidíš, jestli se texty čtou správně.</p>
+    <table><thead><tr><th>Hra</th><th>Procesor</th><th>Grafika</th><th>RAM</th></tr></thead><tbody id="sample"></tbody></table>
+  </div>
+</div>
+
+<script src="../data/parts.js"></script>
+<script src="parse.js"></script>
+<script src="crawl.js"></script>
+<script>
+(() => {
+  "use strict";
+  const $ = id => document.getElementById(id);
+  let stop = false, result = null;
+  const log = msg => { $("log").textContent += msg + "\n"; $("log").scrollTop = 1e9; };
+  const showStats = s => { $("sSeen").textContent = s.seen; $("sReq").textContent = s.req; $("sOk").textContent = s.ok; $("sUp").textContent = s.up; };
+
+  function renderSample(samples) {
+    $("sample").textContent = "";
+    for (const s of samples.slice().sort(() => Math.random() - .5).slice(0, 25)) {
+      const tr = document.createElement("tr");
+      const name = document.createElement("td"); name.textContent = s.name; if (!s.ok) name.className = "bad";
+      const cell = (val, raw, unit) => {
+        const td = document.createElement("td"); td.className = val ? "good" : "bad";
+        td.textContent = val ? (Array.isArray(val) ? val.join(" | ") : val + unit) : "nerozpoznáno";
+        const r = document.createElement("div"); r.className = "raw"; r.textContent = raw || ""; td.append(r); return td;
+      };
+      tr.append(name, cell(s.min.cpu, s.min.raw.cpu), cell(s.min.gpu, s.min.raw.gpu), cell(s.min.ram, s.min.raw.ram, " GB"));
+      $("sample").append(tr);
+    }
+  }
+
+  $("start").onclick = async () => {
+    const key = $("key").value.trim();
+    if (!key) { $("status").textContent = "Nejdřív vlož RAWG klíč."; return; }
+    stop = false; result = null;
+    $("log").textContent = ""; $("start").disabled = true; $("stop").disabled = false; $("save").disabled = true;
+    try {
+      result = await RawgCrawler.run({
+        key, pages: +$("pages").value, months: +$("months").value,
+        log, onStats: showStats, stopped: () => stop,
+        progress: (f, label) => { $("prog").value = f; $("status").textContent = label; }
+      });
+      showStats(result.stats); renderSample(result.samples);
+      $("status").textContent = stop ? "Zastaveno – můžeš uložit, co se stihlo." : `Hotovo: ${result.games.length} her.`;
+    } catch (e) { log("✖ " + e.message); $("status").textContent = e.message; }
+    $("start").disabled = false; $("stop").disabled = true; $("save").disabled = !(result && result.games.length);
+  };
+  $("stop").onclick = () => { stop = true; $("stop").disabled = true; };
+  $("save").onclick = () => {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([RawgCrawler.toFile(result.games)], { type: "text/javascript" }));
+    a.download = "games.js"; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  };
+})();
+</script>
+</body>
+</html>

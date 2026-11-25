@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rozjede to?</title>
+<meta name="description" content="Zadej svůj procesor, grafiku a paměť a zjisti, které hry tvůj počítač rozjede.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <!-- top right: sign in / signed-in user (hidden until Supabase is set up in config.js) -->
+    <div class="account" id="account" hidden>
+      <button type="button" class="btn-ghost" id="loginBtn">Přihlásit se</button>
+      <span class="user" id="userBox" hidden><span class="avatar" id="userAvatar" aria-hidden="true"></span><span class="user-email" id="userEmail"></span></span>
+      <button type="button" class="btn-ghost" id="logoutBtn" hidden>Odhlásit</button>
+    </div>
+    <div class="brand">
+      <svg class="logo" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="4" y="7" width="40" height="27" rx="4"/><path d="M17 41h14M24 34v7"/><path class="tick" d="M16 21l5.5 5.5L33 15"/>
+      </svg>
+      <span>Rozjede to?</span>
+    </div>
+    <p class="lead">Zadej, co máš v počítači, a hned uvidíš, které hry rozjedeš – a co by bylo potřeba vylepšit.</p>
+  </header>
+
+  <!-- 1. Your PC -->
+  <section class="panel build" aria-labelledby="buildTitle">
+    <div class="build-head">
+      <h2 id="buildTitle"><span class="step">1</span> Tvoje sestava</h2>
+      <!-- saved builds: switch between them, save the current one, delete the selected one -->
+      <div class="saved">
+        <select id="savedSel" aria-label="Uložené sestavy"><option value="">Uložené sestavy…</option></select>
+        <button type="button" class="btn-ghost" id="saveBtn">💾 Uložit sestavu</button>
+        <button type="button" class="btn-icon" id="delBtn" title="Smazat vybranou sestavu" aria-label="Smazat vybranou sestavu" hidden>🗑</button>
+      </div>
+    </div>
+    <div class="fields">
+      <label>Procesor
+        <input id="cpu" list="cpuList" placeholder="Začni psát, např. Ryzen 5 3600" autocomplete="off">
+        <datalist id="cpuList"></datalist>
+        <small class="field-msg" id="cpuMsg"></small>
+      </label>
+      <label>Grafická karta
+        <input id="gpu" list="gpuList" placeholder="Začni psát, např. RTX 3060" autocomplete="off">
+        <datalist id="gpuList"></datalist>
+        <small class="field-msg" id="gpuMsg"></small>
+      </label>
+      <label>Operační paměť (RAM)
+        <select id="ram">
+          <option value="">Vyber…</option>
+          <option value="4">4 GB</option>
+          <option value="8">8 GB</option>
+          <option value="12">12 GB</option>
+          <option value="16">16 GB</option>
+          <option value="24">24 GB</option>
+          <option value="32">32 GB</option>
+          <option value="64">64 GB</option>
+        </select>
+        <small class="field-msg"></small>
+      </label>
+    </div>
+    <p class="summary" id="summary">Vyplň všechna tři políčka a u každé hry uvidíš, jestli ji rozjedeš.</p>
+  </section>
+
+  <!-- 2. Games -->
+  <section class="games" aria-labelledby="gamesTitle">
+    <h2 id="gamesTitle" class="sr-only">Hry</h2>
+    <div class="tabs" role="tablist" aria-label="Zobrazení">
+      <button type="button" role="tab" id="tabAll" aria-selected="true"><span class="step">2</span> Hry <span class="tab-count" id="countAll"></span></button>
+      <button type="button" role="tab" id="tabCal" aria-selected="false">📅 Kalendář vydání <span class="tab-count" id="countCal"></span></button>
+    </div>
+    <div class="games-head">
+      <p class="muted list-note" id="listNote"></p>
+      <div class="toolbar">
+        <input type="search" id="search" placeholder="Hledat hru…" aria-label="Hledat hru">
+        <div class="seg" id="verdictFilter" role="group" aria-label="Filtrovat podle výsledku">
+          <button type="button" data-v="all" aria-pressed="true">Vše</button>
+          <button type="button" data-v="great" aria-pressed="false">Rozjedu</button>
+          <button type="button" data-v="ok" aria-pressed="false">Na minimum</button>
+          <button type="button" data-v="no" aria-pressed="false">Nerozjedu</button>
+        </div>
+        <select id="sort" aria-label="Řazení">
+          <option value="pop">Nejpopulárnější</option>
+        <option value="name">Podle názvu</option>
+          <option value="new">Nejnovější</option>
+          <option value="heavy">Nejnáročnější</option>
+          <option value="light">Nejméně náročné</option>
+        </select>
+      </div>
+    </div>
+    <div class="grid" id="grid" aria-live="polite"></div>
+    <div class="more"><button type="button" class="btn-more" id="moreBtn" hidden>Zobrazit další</button></div>
+  </section>
+</div>
+
+<!-- Save build -->
+<dialog id="saveDlg" aria-labelledby="saveTitle">
+  <form class="small-dlg" id="saveForm" method="dialog">
+    <h3 id="saveTitle">Uložit sestavu</h3>
+    <p class="muted" id="saveWhere"></p>
+    <label>Název sestavy
+      <input id="buildName" maxlength="60" required placeholder="např. Herní PC" autocomplete="off">
+    </label>
+    <p class="form-msg" id="saveMsg" hidden></p>
+    <div class="dlg-actions">
+      <button type="button" class="btn-ghost" data-close>Zrušit</button>
+      <button type="submit" class="btn-primary" id="saveConfirm">Uložit</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Sign in -->
+<dialog id="loginDlg" aria-labelledby="loginTitle">
+  <form class="small-dlg" id="loginForm">
+    <h3 id="loginTitle">Přihlásit se</h3>
+    <p class="muted">Pošleme ti na e-mail odkaz. Po kliknutí na něj budeš přihlášený a tvoje sestavy uvidíš na každém zařízení. Heslo nepotřebuješ.</p>
+    <label>E-mail
+      <input type="email" id="loginEmail" required autocomplete="email" placeholder="ty@example.com">
+    </label>
+    <p class="form-msg" id="loginMsg" hidden></p>
+    <div class="dlg-actions">
+      <button type="button" class="btn-ghost" data-close>Zavřít</button>
+      <button type="submit" class="btn-primary" id="loginSend">Poslat odkaz</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Game detail -->
+<dialog id="detail" aria-labelledby="dTitle">
+  <div class="detail">
+    <button type="button" class="close-x" data-close aria-label="Zavřít">×</button>
+    <img id="dImg" alt="">
+    <div class="detail-body">
+      <h3 id="dTitle"></h3>
+      <p class="muted" id="dMeta"></p>
+      <div id="dVerdict"></div>
+      <table class="cmp">
+        <thead><tr><th></th><th>Tvoje</th><th>Minimum</th><th>Doporučeno</th></tr></thead>
+        <tbody id="dRows"></tbody>
+      </table>
+      <div id="dAdvice"></div>
+      <a id="dLink" class="steam-link" target="_blank" rel="noopener">Celé požadavky →</a>
+    </div>
+  </div>
+</dialog>
+
+<footer class="footer">
+  <div class="footer-inner">
+    <p><strong>Rozjede to?</strong> Výkon komponent je orientační odhad podle veřejných testů. Výsledek je vodítko, ne záruka – záleží i na ovladačích, rozlišení a nastavení hry.</p>
+    <!-- RAWG's free plan requires an active link to RAWG – keep it -->
+    <p>Údaje o hrách a obrázky: <a href="https://rawg.io" target="_blank" rel="noopener" id="sourceLink">RAWG</a><span id="updated"></span></p>
+    <p class="muted">© <span id="year">2026</span> Rozjede to?</p>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="data/parts.js"></script>
+<script src="data/games.js"></script>
+<script src="app.js"></script>
+<script src="builds.js"></script>
+</body>
+</html>
