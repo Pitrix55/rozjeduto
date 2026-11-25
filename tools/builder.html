@@ -43,13 +43,14 @@
       <label>RAWG API klíč <small>z rawg.io/apidocs</small>
         <input id="key" type="password" autocomplete="off" placeholder="vlož svůj klíč">
       </label>
-      <label>Populární hry <small>stránek po 40 hrách</small>
-        <input id="pages" type="number" min="1" max="500" value="250">
+      <label>Populární hry <small>počet (1 hra = 1 dotaz)</small>
+        <input id="popular" type="number" min="0" max="10000" value="3500">
       </label>
-      <label>Vycházející hry <small>měsíců dopředu</small>
-        <input id="months" type="number" min="0" max="24" value="12">
+      <label>Vycházející hry <small>počet na příští měsíc</small>
+        <input id="upcoming" type="number" min="0" max="2000" value="100">
       </label>
     </div>
+    <p style="margin:10px 0 0;font-size:.85rem">⚠️ RAWG dovoluje 20 000 dotazů měsíčně a GitHub jich každé pondělí spotřebuje asi 3 700. Ruční stažení spotřebuje stejně – používej ho jen výjimečně.</p>
     <div class="row">
       <button id="start">Stáhnout data</button>
       <button id="stop" class="ghost" disabled>Zastavit</button>
@@ -108,7 +109,7 @@
     $("log").textContent = ""; $("start").disabled = true; $("stop").disabled = false; $("save").disabled = true;
     try {
       result = await RawgCrawler.run({
-        key, pages: +$("pages").value, months: +$("months").value,
+        key, popular: $("popular").value, upcoming: $("upcoming").value, months: 1,
         log, onStats: showStats, stopped: () => stop,
         progress: (f, label) => { $("prog").value = f; $("status").textContent = label; }
       });

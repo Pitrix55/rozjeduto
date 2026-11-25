@@ -71,7 +71,7 @@ const rawgRun = () => {
   const key = process.env.RAWG_API_KEY;
   if (!key) throw new Error("Chybí RAWG_API_KEY (GitHub → Settings → Secrets and variables → Actions).");
   return RawgCrawler.run({
-    key, pages: +(process.env.PAGES || 250), months: +(process.env.MONTHS || 12),
+    key, popular: process.env.POPULAR, upcoming: process.env.UPCOMING, months: process.env.MONTHS,   // defaults: 3500 / 100 / 1 month
     log: msg => console.log(msg)
   });
 };

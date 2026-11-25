@@ -20,7 +20,7 @@ globalThis.RawgCrawler = (() => {
   }
 
   /**
-   * opts: { key, pages = 250, months = 12, log(msg), progress(fraction, label), stopped() → bool, onStats(stats) }
+   * opts: { key, popular = 3500, upcoming = 100, months = 1, log(msg), progress(fraction, label), stopped() → bool, onStats(stats) }
    * returns { games: [...], stats, samples }
    */
   async function run(opts) {
@@ -79,20 +79,22 @@ globalThis.RawgCrawler = (() => {
       games.set(g.id, game);
     }
 
-    async function crawl(label, baseUrl, maxPages, upcoming) {
-      log(`▶ ${label}`);
-      let limit = maxPages;
-      for (let page = 1; page <= limit && !stopped(); page++) {
+    // Goes through RAWG's list page by page until `maxGames` games have been handled.
+    async function crawl(label, baseUrl, maxGames, upcoming) {
+      log(`▶ ${label} (nejvýš ${maxGames})`);
+      let done = 0;
+      const pages = Math.ceil(maxGames / 40);
+      for (let page = 1; page <= pages && done < maxGames && !stopped(); page++) {
         const data = await get(`${baseUrl}&page=${page}&key=${encodeURIComponent(key)}`);
         if (!data || !data.results) break;
-        // RAWG's list might leave out requirements – then ask for each game's detail (1 request per game)
-        if (!upcoming && page === 1 && !data.results.some(g => (g.platforms || []).some(p => "requirements_en" in p || "requirements" in p))) {
+        // RAWG's list leaves out requirements – then ask for each game's detail (1 request per game)
+        if (!detailMode && page === 1 && !data.results.some(g => (g.platforms || []).some(p => "requirements_en" in p || "requirements" in p))) {
           detailMode = true;
-          limit = Math.min(limit, 50);           // 2 000 detail requests – well inside RAWG's 20 000/month
-          log("  Seznam her neobsahuje požadavky – načítám je po jedné hře (jen 2 000 nejpopulárnějších kvůli limitu RAWG).");
+          log("  Seznam her neobsahuje požadavky – načítám je po jedné hře.");
         }
         for (const g of data.results) {
-          if (stopped()) break;
+          if (stopped() || done >= maxGames) break;
+          done++;
           let game = g;
           if (detailMode) {
             const d = await get(`${API}/games/${g.id}?key=${encodeURIComponent(key)}`);
@@ -102,21 +104,24 @@ globalThis.RawgCrawler = (() => {
           handle(game, upcoming);
         }
         onStats(stats);
-        progress(page / limit, `${label}: stránka ${page}`);
+        progress(done / maxGames, `${label}: ${done} z ${maxGames}`);
         if (!data.next) break;
         await sleep(250);
       }
     }
 
-    const pages = Math.max(1, Math.min(500, +opts.pages || 250));
-    await crawl("Populární PC hry", `${API}/games?platforms=${PC}&ordering=-added&page_size=40`, pages, false);
-    const months = Math.max(0, Math.min(24, opts.months == null ? 12 : +opts.months));
-    if (months && !stopped()) {
+    // Budget (RAWG free tier = 20 000 requests a month): 3 500 popular + 100 upcoming ≈ 3 700 requests
+    // per weekly run → ≈ 18 500 even in a month with five Mondays.
+    const clampInt = (v, def, max) => Math.max(0, Math.min(max, v == null || v === "" || isNaN(+v) ? def : Math.round(+v)));
+    const popular = clampInt(opts.popular, 3500, 10000);
+    const upcomingCount = clampInt(opts.upcoming, 100, 2000);
+    const months = clampInt(opts.months, 1, 24);
+    if (popular) await crawl("Populární PC hry", `${API}/games?platforms=${PC}&ordering=-added&page_size=40`, popular, false);
+    if (upcomingCount && months && !stopped()) {
       const from = new Date(), to = new Date(); to.setMonth(to.getMonth() + months);
       const d = x => x.toISOString().slice(0, 10);
-      // most anticipated first (-added); the site sorts them by date. In detail mode only 400 games,
-      // so a weekly run stays around 2 500 requests (≈ 11 000 a month, RAWG free tier allows 20 000).
-      await crawl("Vycházející PC hry", `${API}/games?platforms=${PC}&dates=${d(from)},${d(to)}&ordering=-added&page_size=40`, detailMode ? 10 : 50, true);
+      // most anticipated first (-added); the site sorts them by date
+      await crawl("Vycházející PC hry", `${API}/games?platforms=${PC}&dates=${d(from)},${d(to)}&ordering=-added&page_size=40`, upcomingCount, true);
     }
     log(`✔ Hotovo: ${games.size} her – ${stats.ok} plně rozpoznaných, ${stats.partial || 0} částečně, ${stats.unknown || 0} bez rozpoznaných požadavků; ${stats.up} vycházejících; ${stats.requests} dotazů na RAWG.`);
     return { games: [...games.values()].sort((a, b) => a.name.localeCompare(b.name)), stats, samples };
