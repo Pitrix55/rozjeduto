@@ -6,7 +6,8 @@ globalThis.Db = (() => {
 
   function client(url, key) {
     if (!url || !key) throw new Error("Chybí SUPABASE_URL nebo SUPABASE_SECRET_KEY.");
-    const base = url.replace(/\/+$/, "") + "/rest/v1/";
+    // accept both "https://x.supabase.co" and "https://x.supabase.co/rest/v1/"
+    const base = url.trim().replace(/\/+$/, "").replace(/\/rest\/v1$/, "") + "/rest/v1/";
     const headers = { apikey: key, "Content-Type": "application/json" };
     if (key.startsWith("eyJ")) headers.Authorization = "Bearer " + key;   // older "service_role" JWT keys
 

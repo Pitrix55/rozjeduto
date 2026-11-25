@@ -93,3 +93,9 @@ end $$;
 drop trigger if exists games_mark_manual on public.games;
 create trigger games_mark_manual before insert or update on public.games
   for each row execute function public.games_mark_manual();
+
+-- ============ access for GitHub's updater ============
+-- The updater uses the secret key (role service_role). Grant it explicitly, because new projects
+-- may be created with "Grant API access to new tables automatically" switched off.
+grant usage on schema public to service_role, authenticated, anon;
+grant select, insert, update, delete on public.parts, public.games, public.builds to service_role;
