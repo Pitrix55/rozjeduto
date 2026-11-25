@@ -1,0 +1,48 @@
+# Weekly: RAWG → Supabase → files for the website (data/games.js, data/parts.js).
+# Runs every Monday at 04:00 UTC, or by hand: GitHub → Actions → "Aktualizace dat z RAWG" → Run workflow.
+# Secrets needed (Settings → Secrets and variables → Actions): RAWG_API_KEY, SUPABASE_URL, SUPABASE_SECRET_KEY.
+# The weekly write also keeps the free Supabase project from being paused for inactivity.
+name: Aktualizace dat z RAWG
+
+on:
+  schedule:
+    - cron: "0 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write   # to commit the new data files
+
+concurrency:
+  group: data-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: RAWG → databáze → soubory webu
+        env:
+          MODE: full
+          RAWG_API_KEY: ${{ secrets.RAWG_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: node tools/update-data.js
+
+      - name: Uložit změny
+        run: |
+          if git diff --quiet -- data/; then
+            echo "Žádné změny."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add data/games.js data/parts.js
+            git commit -m "Aktualizace dat z RAWG"
+            git push
+          fi
